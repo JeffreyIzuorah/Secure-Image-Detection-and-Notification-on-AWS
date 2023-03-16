@@ -102,83 +102,83 @@ ec2 = boto3.client(
 
 # Launch a new EC2 instance with the default VPC and subnet
 
-image_id = 'ami-005f9685cb30f234b' # Amazon Linux 2 AMI
-instance_type = 't2.micro'
+# image_id = 'ami-005f9685cb30f234b' # Amazon Linux 2 AMI
+# instance_type = 't2.micro'
 
-response = ec2.run_instances(
-    ImageId=image_id,
-    InstanceType=instance_type,
-    MinCount=1,
-    MaxCount=1,
-)
+# response = ec2.run_instances(
+#     ImageId=image_id,
+#     InstanceType=instance_type,
+#     MinCount=1,
+#     MaxCount=1,
+# )
 
-instance_id = response['Instances'][0]['InstanceId']
-print(f'EC2 instance {instance_id} created successfully.')
+# instance_id = response['Instances'][0]['InstanceId']
+# print(f'EC2 instance {instance_id} created successfully.')
 
 
 # Create a DynamoDB table
 
-cf = boto3.client('cloudformation',
-    aws_access_key_id=access_key,
-    aws_secret_access_key=secret_key,
-    region_name='us-east-1',
-    aws_session_token=session_key)
+# cf = boto3.client('cloudformation',
+#     aws_access_key_id=access_key,
+#     aws_secret_access_key=secret_key,
+#     region_name='us-east-1',
+#     aws_session_token=session_key)
 
-stack_name = 'my-dynamodb-stack'
+# stack_name = 'my-dynamodb-stack'
 
-template = {
-    "Resources": {
-        "MyTable": {
-            "Type": "AWS::DynamoDB::Table",
-            "Properties": {
-                "AttributeDefinitions": [
-                    {
-                        "AttributeName": "image_name",
-                        "AttributeType": "S"
-                    }
-                ],
-                "KeySchema": [
-                    {
-                        "AttributeName": "image_name",
-                        "KeyType": "HASH"
-                    }
-                ],
-                "ProvisionedThroughput": {
-                    "ReadCapacityUnits": 5,
-                    "WriteCapacityUnits": 5
-                },
-                "TableName": "my-table"
-            }
-        }
-    }
-}
+# template = {
+#     "Resources": {
+#         "MyTable": {
+#             "Type": "AWS::DynamoDB::Table",
+#             "Properties": {
+#                 "AttributeDefinitions": [
+#                     {
+#                         "AttributeName": "ImageName",
+#                         "AttributeType": "S"
+#                     }
+#                 ],
+#                 "KeySchema": [
+#                     {
+#                         "AttributeName": "ImageName",
+#                         "KeyType": "HASH"
+#                     }
+#                 ],
+#                 "ProvisionedThroughput": {
+#                     "ReadCapacityUnits": 5,
+#                     "WriteCapacityUnits": 5
+#                 },
+#                 "TableName": "my-table"
+#             }
+#         }
+#     }
+# }
 
-cf.create_stack(StackName=stack_name, TemplateBody=json.dumps(template))
+# cf.create_stack(StackName=stack_name, TemplateBody=json.dumps(template))
 
 
 
 # Use a CloudFormation template to create an S3 bucket
 
-cf = boto3.client('cloudformation',
-    aws_access_key_id=access_key,
-    aws_secret_access_key=secret_key,
-    region_name='us-east-1',
-    aws_session_token=session_key)
+# cf = boto3.client('cloudformation',
+#     aws_access_key_id=access_key,
+#     aws_secret_access_key=secret_key,
+#     region_name='us-east-1',
+#     aws_session_token=session_key)
 
-stack_name = 'my-s3-stack'
+# stack_name = 'my-s3-stack'
 
-template = {
-    "Resources": {
-        "MyBucketJeff": {
-            "Type": "AWS::S3::Bucket",
-            "Properties": {
-                "BucketName": "my-bucket-jeff"
-            }
-        }
-    }
-}
+# template = {
+#     "Resources": {
+#         "MyBucketJeff": {
+#             "Type": "AWS::S3::Bucket",
+#             "Properties": {
+#                 "BucketName": "my-bucket-jeff"
+#             }
+#         }
+#     }
+# }
 
-cf.create_stack(StackName=stack_name, TemplateBody=json.dumps(template))
+# cf.create_stack(StackName=stack_name, TemplateBody=json.dumps(template))
 
 # Upload the provided image files to the S3 bucket using Boto3
 
@@ -212,7 +212,20 @@ for filename in os.listdir(directory):
 
         print(f"{filename} uploaded to s3")
 
-        message = {'file_name': filename}
+        message = {
+            "Records": [
+                {
+                    "s3": {
+                        "bucket": {
+                            "name": "my-bucket-jeff"
+                        },
+                        "object": {
+                            "key": f"{filename}"
+                        }
+                    }
+                }
+            ]
+        }
         sqs_client.send_message(
             QueueUrl=queue_url,
             MessageBody=json.dumps(message)
