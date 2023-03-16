@@ -25,6 +25,7 @@ for mapping in response['EventSourceMappings']:
     if mapping['EventSourceArn'] == 'arn:aws:sqs:us-east-1:232224276285:my_queue':
         client.delete_event_source_mapping(UUID=mapping['UUID'])
         print(response)
+
 #Create an sqs client
 sqs = boto3.client(
     'sqs',
@@ -90,6 +91,28 @@ subscription = sns.subscribe(
     Endpoint=queue_arn
 )
 
+# Subscribe an email address to the SNS topic
+response = sns.subscribe(
+    TopicArn=topic_arn,
+    Protocol='email',
+    Endpoint='jeffreyisora@gmail.com'
+)
+
+# Print the response
+print(response)
+
+#Now we're creating a subscription wth the second lambda functions ARN as the endpoint
+lambda_arn = 'arn:aws:lambda:us-east-1:232224276285:function:second-function'
+
+response = sns.subscribe(
+    TopicArn=topic_arn,
+    Protocol='lambda',
+    Endpoint=lambda_arn,
+    ReturnSubscriptionArn=True
+)
+
+subscription_arn = response['SubscriptionArn']
+print(subscription_arn)
 
 #Create an ec2 client
 ec2 = boto3.client(
