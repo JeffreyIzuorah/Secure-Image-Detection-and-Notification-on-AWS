@@ -14,19 +14,15 @@ access_key = os.environ.get('my_access_key')
 session_key = os.environ.get('my_session_token')
 
 
+#Creating the necessary clients for our application
+print('Creating the necessary clients for the program...')
+
 client = boto3.client('lambda', 
     aws_access_key_id=access_key,
     aws_secret_access_key=secret_key,
     region_name='us-east-1',
     aws_session_token=session_key)
 
-response = client.list_event_source_mappings(FunctionName='my-function')
-for mapping in response['EventSourceMappings']:
-    if mapping['EventSourceArn'] == 'arn:aws:sqs:us-east-1:232224276285:my_queue':
-        client.delete_event_source_mapping(UUID=mapping['UUID'])
-        print(response)
-
-#Create an sqs client
 sqs = boto3.client(
     'sqs',
     aws_access_key_id=access_key,
@@ -42,12 +38,6 @@ sns = boto3.client(
     region_name='us-east-1',
     aws_session_token=session_key
 )
-
-# This creates a new SQS queue with the name my_queue and returns its URL.
-# queue_name = 'my_queue'
-# response = sqs.create_queue(QueueName=queue_name)
-# queue_url = response['QueueUrl']
-
 
 s3_client = boto3.client(
     's3',
@@ -65,14 +55,56 @@ sqs_client = boto3.client(
     aws_session_token=session_key
 )
 
+ec2 = boto3.client(
+    'ec2',
+    aws_access_key_id=access_key,
+    aws_secret_access_key=secret_key,
+    region_name='us-east-1',
+    aws_session_token=session_key
+)
 
-# Create an SNS topic
-response = sns.create_topic(Name='my-topic')
+#create session
+session = boto3.Session(
+    aws_access_key_id=access_key,
+    aws_secret_access_key=secret_key,
+    region_name='us-east-1',
+    aws_session_token=session_key
+)
 
-# Get the ARN of the SNS topic
-topic_arn = response['TopicArn']
+s3 = session.client('s3')
 
-queue_name = 'my_queue'
+dynamodb = boto3.client(
+    'dynamodb',
+    aws_access_key_id=access_key,
+    aws_secret_access_key=secret_key,
+    region_name='us-east-1',
+    aws_session_token=session_key
+)
+
+lambda_client = boto3.client(
+    'lambda',
+    aws_access_key_id=access_key,
+    aws_secret_access_key=secret_key,
+    region_name='us-east-1',
+    aws_session_token=session_key
+)
+
+cf = boto3.client('cloudformation',
+    aws_access_key_id=access_key,
+    aws_secret_access_key=secret_key,
+    region_name='us-east-1',
+    aws_session_token=session_key)
+
+
+response = client.list_event_source_mappings(FunctionName='dynamodb_function')
+for mapping in response['EventSourceMappings']:
+    if mapping['EventSourceArn'] == 'arn:aws:sqs:us-east-1:232224276285:my_queue_s1935095':
+        client.delete_event_source_mapping(UUID=mapping['UUID'])
+        print('Cleaning up residue from past runtimes...')
+
+#Creating an sqs queue
+print('Now creating sqs queue...')
+queue_name = 'my_queue_s1935095'
 queue_url = sqs_client.create_queue(QueueName=queue_name)['QueueUrl']
 
 response = sqs_client.get_queue_attributes(
@@ -83,6 +115,13 @@ response = sqs_client.get_queue_attributes(
 queue_arn = response['Attributes']['QueueArn']
 
 print(f'SQS queue {queue_name} created successfully.')
+
+# Create an SNS topic
+print('Creating sns topic and necessary subscriptions...')
+response = sns.create_topic(Name='my_topic_s1935095')
+
+# Get the ARN of the SNS topic
+topic_arn = response['TopicArn']
 
 # Subscribe the SQS queue to the SNS topic
 subscription = sns.subscribe(
@@ -98,11 +137,8 @@ response = sns.subscribe(
     Endpoint='jeffreyisora@gmail.com'
 )
 
-# Print the response
-print(response)
-
 #Now we're creating a subscription wth the second lambda functions ARN as the endpoint
-lambda_arn = 'arn:aws:lambda:us-east-1:232224276285:function:second-function'
+lambda_arn = 'arn:aws:lambda:us-east-1:232224276285:function:mailing_function'
 
 response = sns.subscribe(
     TopicArn=topic_arn,
@@ -112,16 +148,6 @@ response = sns.subscribe(
 )
 
 subscription_arn = response['SubscriptionArn']
-print(subscription_arn)
-
-#Create an ec2 client
-ec2 = boto3.client(
-    'ec2',
-    aws_access_key_id=access_key,
-    aws_secret_access_key=secret_key,
-    region_name='us-east-1',
-    aws_session_token=session_key
-)
 
 # Launch a new EC2 instance with the default VPC and subnet
 
@@ -133,96 +159,76 @@ ec2 = boto3.client(
 #     InstanceType=instance_type,
 #     MinCount=1,
 #     MaxCount=1,
+#     KeyName='vockey', 
 # )
 
 # instance_id = response['Instances'][0]['InstanceId']
 # print(f'EC2 instance {instance_id} created successfully.')
 
-
 # Create a DynamoDB table
+print('dynamodb table creating from cf template...')
 
-# cf = boto3.client('cloudformation',
-#     aws_access_key_id=access_key,
-#     aws_secret_access_key=secret_key,
-#     region_name='us-east-1',
-#     aws_session_token=session_key)
+stack_name = 'my-dynamodb-stack'
 
-# stack_name = 'my-dynamodb-stack'
+template = {
+    "Resources": {
+        "MyTable": {
+            "Type": "AWS::DynamoDB::Table",
+            "Properties": {
+                "AttributeDefinitions": [
+                    {
+                        "AttributeName": "ImageName",
+                        "AttributeType": "S"
+                    }
+                ],
+                "KeySchema": [
+                    {
+                        "AttributeName": "ImageName",
+                        "KeyType": "HASH"
+                    }
+                ],
+                "ProvisionedThroughput": {
+                    "ReadCapacityUnits": 5,
+                    "WriteCapacityUnits": 5
+                },
+                "StreamSpecification" :{
+                    "StreamViewType": "NEW_AND_OLD_IMAGES"
+                },
+                "TableName": "my_table_s1935095"
+            }
+        }
+    }
+}
 
-# template = {
-#     "Resources": {
-#         "MyTable": {
-#             "Type": "AWS::DynamoDB::Table",
-#             "Properties": {
-#                 "AttributeDefinitions": [
-#                     {
-#                         "AttributeName": "ImageName",
-#                         "AttributeType": "S"
-#                     }
-#                 ],
-#                 "KeySchema": [
-#                     {
-#                         "AttributeName": "ImageName",
-#                         "KeyType": "HASH"
-#                     }
-#                 ],
-#                 "ProvisionedThroughput": {
-#                     "ReadCapacityUnits": 5,
-#                     "WriteCapacityUnits": 5
-#                 },
-#                 "TableName": "my-table"
-#             }
-#         }
-#     }
-# }
+cf.create_stack(StackName=stack_name, TemplateBody=json.dumps(template))
 
-# cf.create_stack(StackName=stack_name, TemplateBody=json.dumps(template))
+print('Dynamodb table successfully created!')
 
+# stream_arn = response['TableDescription']['LatestStreamArn']
 
 
 # Use a CloudFormation template to create an S3 bucket
+print('S3 bucket creating from cf template...')
+stack_name = 'my-s3-stack'
 
-# cf = boto3.client('cloudformation',
-#     aws_access_key_id=access_key,
-#     aws_secret_access_key=secret_key,
-#     region_name='us-east-1',
-#     aws_session_token=session_key)
+template = {
+    "Resources": {
+        "MyBucketJeff": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+                "BucketName": "my-bucket-s1935095"
+            }
+        }
+    }
+}
 
-# stack_name = 'my-s3-stack'
+cf.create_stack(StackName=stack_name, TemplateBody=json.dumps(template))
 
-# template = {
-#     "Resources": {
-#         "MyBucketJeff": {
-#             "Type": "AWS::S3::Bucket",
-#             "Properties": {
-#                 "BucketName": "my-bucket-jeff"
-#             }
-#         }
-#     }
-# }
-
-# cf.create_stack(StackName=stack_name, TemplateBody=json.dumps(template))
+print('S3 bucket successfully created!')
 
 # Upload the provided image files to the S3 bucket using Boto3
 
-
-#create session
-session = boto3.Session(
-    aws_access_key_id=access_key,
-    aws_secret_access_key=secret_key,
-    region_name='us-east-1',
-    aws_session_token=session_key
-)
-
-s3 = session.client('s3')
-sqs_client = boto3.client(
-    'sqs',
-    aws_access_key_id=access_key,
-    aws_secret_access_key=secret_key,
-    region_name='us-east-1',
-    aws_session_token=session_key
-    )
-bucket_name = 'my-bucket-jeff'
+bucket_name = 'my-bucket-s1935095'
 directory = '/Users/jeffreyizuorah/School projects/CPD/images'
 
 for filename in os.listdir(directory):
@@ -231,7 +237,7 @@ for filename in os.listdir(directory):
     time.sleep(30)
 
     with open(filepath, 'rb') as f:
-        s3.upload_fileobj(f, 'my-bucket-jeff', filename)
+        s3.upload_fileobj(f, 'my-bucket-s1935095', filename)
 
         print(f"{filename} uploaded to s3")
 
@@ -240,7 +246,7 @@ for filename in os.listdir(directory):
                 {
                     "s3": {
                         "bucket": {
-                            "name": "my-bucket-jeff"
+                            "name": "my-bucket-s1935095"
                         },
                         "object": {
                             "key": f"{filename}"
@@ -253,38 +259,30 @@ for filename in os.listdir(directory):
             QueueUrl=queue_url,
             MessageBody=json.dumps(message)
         )
-print(f"Message sent to SQS queue {queue_name} for {filename}.")
+print(f"Message sent to SQS queue {queue_name} for all files.")
 
-
-# Configure the SQS queue to trigger a Lambda function when a message is received
-queue_name = 'my-queue'
-
-
-# Write a Lambda function in Python (Boto3) to extract relevant details such as file name from the SQS message
-lambda_client = boto3.client(
-    'lambda',
-    aws_access_key_id=access_key,
-    aws_secret_access_key=secret_key,
-    region_name='us-east-1',
-    aws_session_token=session_key
-)
 
 response = lambda_client.create_event_source_mapping(
     EventSourceArn=queue_arn,
-    FunctionName='my-function',
+    FunctionName='dynamodb_function',
     BatchSize=5,
     Enabled=True
 )
 
-print(response)
+print('Even source mapping completed')
 
 
+response = dynamodb.describe_table(
+    TableName='my_table_s1935095'
+)
 
-# Use Boto3 to call the AWS Rekognition service for label detection
+table_description = response['Table']
+stream_arn = table_description['LatestStreamArn']
 
-# Extract the relevant information from the Rekognition response and save the top five labels along with their confidence scores in the DynamoDB table
-
-# If the label pedestrian is detected, trigger a second Lambda function that immediately notifies the email address subscribed to the SNS topic.
-
-
+response = lambda_client.create_event_source_mapping(
+    EventSourceArn=stream_arn,
+    FunctionName='mailing_function',
+    Enabled=True,
+    StartingPosition='LATEST'
+)
 

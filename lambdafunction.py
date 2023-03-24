@@ -11,9 +11,9 @@ sqs_client = boto3.client('sqs')
 s3= boto3.client('s3')
 dynamodb = boto3.resource('dynamodb')
 
-table_name = 'my-table'
+table_name = 'my_table_s1935095'
 table = dynamodb.Table(table_name)
-topic_arn = 'arn:aws:sns:us-east-1:232224276285:my-topic'
+topic_arn = 'arn:aws:sns:us-east-1:232224276285:my_topic_s1935095'
 
 
 # Define custom JSON encoder class
