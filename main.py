@@ -257,4 +257,18 @@ response = lambda_client.create_event_source_mapping(
     Enabled=True
 )
 
+response = dynamodb.describe_table(
+    TableName='my_table_s1935095'
+)
+
+table_description = response['Table']
+stream_arn = table_description['LatestStreamArn']
+
+response = lambda_client.create_event_source_mapping(
+    EventSourceArn=stream_arn,
+    FunctionName='mailing_function',
+    Enabled=True,
+    StartingPosition='LATEST'
+)
+
 print('Even source mapping completed')

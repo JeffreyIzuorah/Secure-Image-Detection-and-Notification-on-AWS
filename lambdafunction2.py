@@ -13,7 +13,7 @@ def lambda_handler(event, context):
     for record in event['Records']:
         if record['eventName'] == 'INSERT':
             new_image = record['dynamodb']['NewImage']
-            labels = new_image['labels']['L']
+            labels = new_image['Labels']['L']
             pedestrian_detected = False
             for label in labels:
                 if label['M']['Name']['S'].lower() == 'pedestrian':

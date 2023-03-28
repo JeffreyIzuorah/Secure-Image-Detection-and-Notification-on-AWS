@@ -269,9 +269,6 @@ response = lambda_client.create_event_source_mapping(
     Enabled=True
 )
 
-print('Even source mapping completed')
-
-
 response = dynamodb.describe_table(
     TableName='my_table_s1935095'
 )
@@ -286,3 +283,4 @@ response = lambda_client.create_event_source_mapping(
     StartingPosition='LATEST'
 )
 
+print('Even source mapping completed')
