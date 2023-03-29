@@ -102,6 +102,8 @@ for mapping in response['EventSourceMappings']:
         client.delete_event_source_mapping(UUID=mapping['UUID'])
         print('Cleaning up residue from past runtimes...')
 
+
+
 #Creating an sqs queue
 print('Now creating sqs queue...')
 queue_name = 'my_queue_s1935095'
@@ -269,18 +271,18 @@ response = lambda_client.create_event_source_mapping(
     Enabled=True
 )
 
+
 response = dynamodb.describe_table(
     TableName='my_table_s1935095'
 )
+stream_arn = response['Table']['LatestStreamArn']
 
-table_description = response['Table']
-stream_arn = table_description['LatestStreamArn']
 
 response = lambda_client.create_event_source_mapping(
     EventSourceArn=stream_arn,
     FunctionName='mailing_function',
     Enabled=True,
-    StartingPosition='LATEST'
+    StartingPosition='TRIM_HORIZON',
+    BatchSize=10
 )
-
 print('Even source mapping completed')

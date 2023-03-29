@@ -1,7 +1,6 @@
 import boto3
 import os
 import json
-import logging
 import time
 from dotenv import load_dotenv
 from botocore.exceptions import ClientError
@@ -260,15 +259,14 @@ response = lambda_client.create_event_source_mapping(
 response = dynamodb.describe_table(
     TableName='my_table_s1935095'
 )
-
-table_description = response['Table']
-stream_arn = table_description['LatestStreamArn']
+stream_arn = response['Table']['LatestStreamArn']
 
 response = lambda_client.create_event_source_mapping(
     EventSourceArn=stream_arn,
     FunctionName='mailing_function',
     Enabled=True,
-    StartingPosition='LATEST'
+    StartingPosition='TRIM_HORIZON',
+    BatchSize=10
 )
 
 print('Even source mapping completed')
