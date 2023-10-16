@@ -1,5 +1,4 @@
-# CPD
-
+# Secure Image Detection and Notification on AWS
 Project Description:
 The project is an innovative image recognition and notification system designed to address the issue of pedestrian safety. It leverages a cloud-based architecture with a focus on cost efficiency and security. The primary goal is to detect pedestrians in images and notify relevant stakeholders when pedestrians are detected. The project is implemented using Amazon Web Services (AWS) cloud services, making it highly scalable and cost-effective.
 Key Components and Architecture:
